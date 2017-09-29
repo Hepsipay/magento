@@ -1,0 +1,432 @@
+<?php
+$_code = $this->getMethodCode();
+
+$installment          = Mage::getStoreConfig('payment/hepsipay/use_installment');
+$commissionActive     = Mage::getStoreConfig('payment/hepsipay/use_commission');
+$secure_3d            = Mage::getStoreConfig('payment/hepsipay/use3d_secure');
+$force_secure_3d      = Mage::getStoreConfig('payment/hepsipay/force_use3d_secure');
+//$force_secure_3d_debit= Mage::getStoreConfig('payment/hepsipay/force_use3d_secure_debit');
+$force_secure_3d_debit= true;
+$quote                = Mage::getModel('checkout/session')->getQuote();
+$quoteData            = $quote->getData();
+$grandTotal           = $this->getTotal();
+$currency_symbol      = $this->getCurrencySymbole();
+$currency             = $this->getCurrencyCode();
+$text_credit_card     = $this->__('Credit card/Debit card');
+
+$hepsipayHelpImagesPath = $this->getSkinUrl('images/hepsipay/');
+if(strpos($hepsipayHelpImagesPath, 'rwd') === false){
+    $hepsipayHelpImagesPath = str_replace('frontend/base', 'frontend/rwd', $hepsipayHelpImagesPath);
+}
+?>
+<style>
+    .input-cc-number-visa {
+        background: rgba(0, 0, 0, 0) url("<?php echo $hepsipayHelpImagesPath.'hepsipay_creditcard_visa.png'; ?>") no-repeat scroll right center / 13% auto !important;
+        float: left;
+    }
+
+    .input-cc-number-master {
+        background: rgba(0, 0, 0, 0) url("<?php echo $hepsipayHelpImagesPath.'hepsipay_creditcard_master.png'; ?>") no-repeat scroll right center / 13% auto !important;
+        float: left;
+    }
+
+    .input-cc-number-maestro {
+        background: rgba(0, 0, 0, 0) url("<?php echo $hepsipayHelpImagesPath.'hepsipay_creditcard_maestro.png'; ?>") no-repeat scroll right center / 13% auto !important;
+        float: left;
+    }
+
+    .input-cc-number-troy {
+        background: rgba(0, 0, 0, 0) url("<?php echo $hepsipayHelpImagesPath.'hepsipay_creditcard_troy.png'; ?>") no-repeat scroll right center / 13% auto !important;
+        float: left;
+    }
+
+    .input-cc-number-not-supported {
+        background: rgba(0, 0, 0, 0) url("<?php echo $hepsipayHelpImagesPath.'hepsipay_creditcard_not_supported.png'; ?>") no-repeat scroll right center / 4% auto !important;
+        float: left;
+    }
+
+    #payment_form_hepsipay > li {width: 75% !important;  }
+    #payment_form_hepsipay input[type='text'] {width: 100% !important;  }
+    #payment_form_hepsipay .v-fix {width: 100% !important;  }
+    #payment_form_hepsipay .divSelectMenu {width: 48% !important;  }
+    #payment_form_hepsipay .divSelectMenu > select {width: 100% !important; height: 30px !important; }
+    .card_loder > img {display: inline;vertical-align: middle;width: 25px;}
+    .card_image > img {display: inline-block;width: auto;height:25px;vertical-align: middle;}
+    .card_image { display: inline-block;  padding:0 5px;vertical-align: bottom;}
+    .toatl_label h3 {margin: 15px 0 0 0;}
+    .install_body_label {float: left;width: 30%;height: 40px;text-align: center; border-bottom: 1px solid #d2d2d2;line-height: 40px;}
+    .installment_row {/* padding-top: 10px;*/}
+    .install_body_label.installment_radio, .installmet_head .install_head_label.add_space {height: 40px;text-align: center;width: 10%;line-height: 40px;}
+    #installment_table_id {background-color: #eee;border: 1px solid;border-radius: 5px;padding: 10px;margin-top: 20px; max-width: 97%}
+    .installmet_head .install_head_label {float: left;font-weight: bold;text-align: center;width: 30%; height: 40px;line-height: 40px;border-bottom: 2px solid #d2d2d2; }
+    .installment_body , .installment_footer {  clear: both; }
+    .toatl_label {display:  none;}
+    .use3d_secure_class {float:  left; }
+    .full-width { width: 100% !important;}
+    #enable3dsecure label {  margin-top: 10px;}
+    #hepsipay_use3d_secure {  margin-top: 10px; margin-right: 10px;}
+    .joker {  border-radius: 25px;  font-weight: 600;  padding: 3px 10px;  background: #ff9800;  color: white;  text-transform: uppercase;  }
+    /* Style the list */
+    #payment_form_hepsipay ul.tab {  list-style-type: none;  margin: 0;  padding: 0;  overflow: hidden;  border: 1px solid #ccc;  background-color: #f1f1f1;  }
+    /* Float the list items side by side */
+    #payment_form_hepsipay ul.tab li {float: left; height: 61px; margin: 0 !important; padding: 0!important;}
+    /* Style the links inside the list items */
+    #payment_form_hepsipay ul.tab li a { display: inline-block;  color: black;  text-align: center;  padding: 14px 16px;  text-decoration: none;  transition: 0.3s;  font-size: 17px; height: 61px; }
+    /* Change background color of links on hover */
+    #payment_form_hepsipay ul.tab li a:hover {background-color: #ddd;}
+    /* Create an active/current tablink class */
+    #payment_form_hepsipay .active {background-color: #ccc;}
+    /* Style the tab content */
+    .tabcontent { display: none;  padding: 6px 12px;  border: 1px solid #ccc;  border-top: none; }
+    .disabledClass{pointer-events: none; opacity: 0.5;}
+    .input-box .v-fix {margin-right: 2% !important;}
+    @media (max-width: 500px){
+        #installment_table_id div{
+            width: 100%;
+        }
+    }
+</style>
+
+<ul class="form-list" id="payment_form_<?php echo $_code ?>" style="display:none;">
+            <li class="toatl_label">
+                <h3>
+                    <label><b><?php echo $this->__('Total') ?>: </b></label>
+                    <span rel="<?php echo $grandTotal; ?>" id="grand_total" class="grant_total_custom"><?php echo Mage::helper('core')->currency($grandTotal, true, false); ?></span>
+                </h3>
+            </li>
+            <li class="checkout-logo">
+                <?php echo $text_credit_card; ?>
+                <img src="<?php echo $hepsipayHelpImagesPath.'hepsipay-logo.png'; ?>">
+            </li>
+            <li>
+                <p class="required">*<?php echo $this->__('Required Fields') ?></p>
+                <label for="<?php echo $_code ?>_cc_owner" class="required"><em>*</em><?php echo $this->__('Name on Card') ?></label>
+                <div class="input-box full-width">
+                    <input type="text" title="<?php echo $this->__('Name on Card') ?>" class="input-text required-entry" id="<?php echo $_code ?>_cc_owner" name="payment[cc_owner]" value="<?php echo $this->escapeHtml($this->getInfoData('cc_owner')) ?>" />
+                </div>
+            </li>
+            <li>
+                <label for="<?php echo $_code ?>_cc_number" class="required"><em>*</em><?php echo $this->__('Card Number') ?></label>
+                <div class="input-box full-width">
+                    <input value="" type="text" pattern="\d*" id="<?php echo $_code ?>_cc_number" name="payment[cc_number]" title="<?php echo $this->__('Credit Card Number') ?>" class="input-cc-number-not-supported  input-text required-entry validate-cc-number validate-cc-type" maxlength="16"  />
+                    <span style="display: none;" class="card_loder" id="hepsipay_card_load">
+                        <img src="<?php echo $this->getSkinUrl('images/opc-ajax-loader.gif'); ?>" />
+                    </span>
+                </div>
+            </li>
+            <li>
+                <label for="<?php echo $_code ?>_expiration" class="required"><em>*</em><?php echo $this->__('Expiration Date') ?></label>
+                <div class="input-box full-width">
+                    <div class="v-fix divSelectMenu">
+                        <select id="<?php echo $_code ?>_expiration" name="payment[cc_exp_month]" class="month validate-cc-exp required-entry">
+                            <?php $_ccExpMonth = $this->getInfoData('cc_exp_month') ?>
+                            <?php foreach ($this->getCcMonths() as $k => $v): ?>
+                                <option value="<?php echo $k ? $k : '' ?>"<?php if ($k == $_ccExpMonth): ?> selected="selected"<?php endif ?>><?php echo $v ?></option>
+                            <?php endforeach ?>
+                        </select>
+                    </div>
+                    <div class="v-fix divSelectMenu">
+                            <?php $_ccExpYear = $this->getInfoData('cc_exp_year') ?>
+                        <select id="<?php echo $_code ?>_expiration_yr" name="payment[cc_exp_year]" class="year required-entry">
+                            <?php foreach ($this->getCcYears() as $k => $v): ?>
+                                <option value="<?php echo $k ? $k : '' ?>"<?php if ($k == $_ccExpYear): ?> selected="selected"<?php endif ?>><?php echo $v ?></option>
+                            <?php endforeach ?>
+                        </select>
+                    </div>
+                </div>
+            </li>
+            <?php if ($this->hasVerification()): ?>
+            <li>
+                <label for="<?php echo $_code ?>_cc_cid" class="required"><em>*</em><?php echo $this->__('Card Verification Number') ?></label>
+                <div class="input-box full-width">
+                    <div class="v-fix">
+                        <input type="text" pattern="\d*" title="<?php echo $this->__('Card Verification Number') ?>" class="input-text cvv required-entry validate-cc-cvn" id="<?php echo $_code ?>_cc_cid" name="payment[cc_cid]" value="" />
+                    </div>
+                    <a href="#" class="cvv-what-is-this"><?php echo $this->__('What is this?') ?></a>
+                </div>
+            </li>
+            <?php endif; ?>
+            <li>
+                <div id="installment_table_id" class="full-width">
+                    <div class="installmet_head">
+                        <div class="install_head_label add_space"><img style="display: none" class="bank_photo" data-src="<?php echo $hepsipayHelpImagesPath; ?>" src=""></div>
+                        <div class="install_head_label"><?php echo $this->__('Installment') ?></div>
+                        <div class="install_head_label"><?php echo $this->__('Amount / Month') ?></div>
+                        <div class="install_head_label"><?php echo $this->__('Total') ?></div>
+                    </div>
+                    <div class="installment_body" id="installment_body">
+                        <div class="installment_row">
+                            <div class="install_body_label installment_radio"><input rel="1" type="radio" class="installment_radio" checked name="payment[installment]" value="1" /></div>
+                            <div class="install_body_label installment_lable_code"> <?php echo $this->__('One Shot'); ?></div>
+                            <div class="install_body_label"><?php echo Mage::helper('core')->currency($grandTotal, true, false); ?></div>
+                            <div class="install_body_label final_commi_price" rel="<?php echo $grandTotal; ?>"><?php echo Mage::helper('core')->currency($grandTotal, true, false); ?></div>
+                        </div>
+                    </div>
+                    <div class="installment_footer"></div>
+                </div>
+                <input id="<?php echo $_code ?>_has3d" type="hidden" title="<?php echo $this->__('Has 3D') ?>" name="payment[has3d]" value="<?php echo $this->htmlEscape($this->getInfoData('has3d')) ?>" />
+                <input id="<?php echo $_code ?>_bank_id" type="hidden" title="<?php echo $this->__('Bank') ?>" name="payment[bank_id]" value="<?php echo $this->htmlEscape($this->getInfoData('bank_id')) ?>" />
+                <input id="<?php echo $_code ?>_gateway" type="hidden" title="<?php echo $this->__('Gateway') ?>" name="payment[gateway]" value="<?php echo $this->htmlEscape($this->getInfoData('gateway')) ?>" />
+            </li>
+
+            <?php if ($force_secure_3d == 1) : ?>
+                <li class="td_secure" id="enable3dsecure">
+                    <div class="input-box full-width">
+                        <input checked="checked" disabled="disabled" data-force="true" class="disabledClass use3d_secure_class" type="checkbox" id="<?php echo $_code ?>_use3d_secure" value="1" name="payment[use3d_secure]" />
+                        <label for="<?php echo $_code ?>_use3d_secure" class="disabledClass label_use3d_secure_class"> <?php echo $this->__('Use 3D secure Payments System') ?></label>
+                    </div>
+                </li>
+            <?php elseif ($secure_3d == 1) : ?>
+                <li class="td_secure" id="enable3dsecure">
+                    <div class="input-box full-width">
+                        <input data-force="false"  class="use3d_secure_class" type="checkbox" id="<?php echo $_code ?>_use3d_secure" value="1" name="payment[use3d_secure]" />
+                        <label for="<?php echo $_code ?>_use3d_secure" class="label_use3d_secure_class"> <?php echo $this->__('Use 3D secure Payments System') ?></label>
+                    </div>
+                </li>
+            <?php endif; ?>
+</ul>
+
+<script type="text/javascript">
+
+    banks                   = false;
+    var grandTotal          = document.getElementById('grand_total').getAttribute('rel');
+    var currency_symbol     = '<?php echo $currency_symbol; ?>';
+    var $cc                 = document.getElementById('<?php echo $_code ?>_cc_number');
+    var $bank               = document.getElementById('<?php echo $_code ?>_bank_id');
+    var $has3d              = document.getElementById('<?php echo $_code ?>_has3d');
+    var $gateway            = document.getElementById('<?php echo $_code ?>_gateway');
+    var $options            = document.getElementById('installment_body');
+    var $card_load          = document.getElementById('hepsipay_card_load');
+    var $bank_photo         = document.getElementsByClassName('bank_photo')[0];
+    var $enable3dSecure     = document.getElementById('enable3dsecure');
+    BIN_GLOBAL_FOR_CARD     = '00000';
+    INSTALMENTS_RESET       = true;
+    BIN                     = false;
+
+    $cc.addEventListener('keyup', getCardBrandAndInstallmentsList, false);
+    $cc.addEventListener('change', getCardBrandAndInstallmentsList, false);
+
+    function getCardBrandAndInstallmentsList(e){
+        var target = e.target || e.srcElement;
+        BIN        = target.value;
+        BIN = BIN.replace(/ /g,'');
+        cardBrandDetector(BIN);
+
+        if(BIN.length > 5) {
+            BIN = this.value.substr(0, 6);
+            if(BIN == BIN_GLOBAL_FOR_CARD){
+                return;
+            }else{
+                BIN_GLOBAL_FOR_CARD = BIN;
+                INSTALMENTS_RESET   = true;
+            }
+
+
+            var url = '<?php echo Mage::getUrl('hepsipay/service/issuer', array('_secure' => false)); ?>'+'?bin='+BIN;
+            $card_load.style.display = 'block';
+
+            var xmlhttp = new XMLHttpRequest();
+            xmlhttp.open("GET", url, true);
+            xmlhttp.setRequestHeader("X-Requested-With", "XMLHttpRequest");
+            xmlhttp.setRequestHeader("X_REQUESTED_WITH", "XMLHttpRequest");
+            xmlhttp.send();
+
+            xmlhttp.onreadystatechange = function() {
+                if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
+                    var response = JSON.parse(xmlhttp.responseText);
+                    if(response.data.bank_id != ''){
+                        var bankImageSrc = $bank_photo.getAttribute('data-src');
+                        if(response.data.type == 'CREDIT'){
+                            bankImageSrc = bankImageSrc+'networks/'+response.data.bank_id+'.png';
+                        }else{
+                            bankImageSrc = bankImageSrc+'banks/'+response.data.bank_id+'.png';
+                        }
+                        $bank_photo.setAttribute('src', bankImageSrc);
+                        $bank_photo.style.display = 'block';
+                    }
+
+                    //force 3d for debit
+                    var checkbox3D = document.getElementsByClassName('use3d_secure_class')[0];
+                    var checkbox3DLabel = document.getElementsByClassName('label_use3d_secure_class')[0];
+                    <?php if($force_secure_3d_debit) : ?>
+                    if(
+                        response.data.type  != 'CREDIT' &&
+                        checkbox3D.getAttribute('data-force') == 'false'
+                    ){
+                        checkbox3D.className      += " disabledClass";
+                        checkbox3DLabel.className += " disabledClass";
+                        checkbox3D.checked = true;
+                    }else if(checkbox3D.getAttribute('data-force') == 'false'){
+                        checkbox3D.classList.remove("disabledClass");
+                        checkbox3DLabel.classList.remove("disabledClass");
+                    }
+                    <?php endif;?>
+
+                    refreshInstallmentsTable(response.data.bank_id, response.data.type);
+
+                    $card_load.style.display = 'none';
+                }
+            };
+        }else{
+            BIN_GLOBAL_FOR_CARD = BIN;
+            if(INSTALMENTS_RESET){
+                INSTALMENTS_RESET = false;
+                refreshInstallmentsTable('', '');
+            }
+            $card_load.style.display  = 'none';
+            $bank_photo.style.display = 'none';
+        }
+    }
+
+    function refreshInstallmentsTable(bankName, cardType){
+        buildInstallmentsTable(bankName, cardType);
+    }
+
+    function buildInstallmentsTable(bankName, cardType) {
+        $options.innerHTML     = '';
+        var total      = '<?php echo $grandTotal; ?>';
+        var currency   = '<?php echo $currency; ?>';
+        var url_params = '?bin='+BIN+'&total='+total+'&currency='+currency;
+
+        var url = '<?php echo Mage::getUrl('hepsipay/service/banks', array('_secure' => false)); ?>'+url_params;
+        $card_load.style.display = 'block';
+        var xmlhttp = new XMLHttpRequest();
+        xmlhttp.open("GET", url, true);
+        xmlhttp.setRequestHeader("X-Requested-With", "XMLHttpRequest");
+        xmlhttp.send();
+        xmlhttp.onreadystatechange = function() {
+            if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
+                var response = JSON.parse(xmlhttp.responseText);
+                banks        = response.data;
+                $options.insertAdjacentHTML('beforeend', getInstallementOption(1, grandTotal, banks[0].installments[0].commission));
+                if(<?php  echo ($installment == 1); ?> == 1){
+                    for (var i in banks) {
+                        var bank = banks[i];
+                        if (bank.bank == bankName) {
+                            $bank.value    = bank.bank;
+                            $has3d.value   = bank.has3d;
+                            $gateway.value = bank.gateway;
+                            for (item of bank.installments) {
+                                if(cardType != 'CREDIT' || parseInt(item.count) == 1)  continue;
+                                $options.insertAdjacentHTML('beforeend', getInstallementOption(parseInt(item.count), grandTotal, item.commission, false));
+                            }
+                            break;
+                        }
+                    }
+                }
+
+                $card_load.style.display = 'none';
+                createEventListenerToInstallment();
+            }
+        };
+    }
+
+    function getInstallementOption(count, amount, percentage, hasExtra) {
+        percentage = percentage.toString();
+        var commission  = percentage.replace('%', '') * <?php echo $commissionActive; ?>;
+        var total       = parseFloat(amount) * (1 + parseFloat(commission) / 100);
+        var pmon        = total / count;
+        var checked     = count==1 ? 'checked' : '';
+        var textOfCount = count==1?'<?php echo $this->__('One Shot'); ?>' : count;
+
+        return ''
+            + '<div class="installment_row">'
+            + '<div class="install_body_label installment_radio">'
+            + '<input rel="'+count+'" class="custom_field_installment_radio" type="radio" '+checked+' name="payment[installment]" value="'+count+'" />'
+            + '</div>'
+            + '<div class="install_body_label installment_lable_code">'+textOfCount+'</div>'
+            + '<div class="install_body_label"> '+currency_symbol+ pmon.toFixed(2) + '</div>'
+            + '<div rel="' + total + '" class="install_body_label final_commi_price"> ' + currency_symbol + parseFloat(total).toFixed(2) + '</div>'
+            + '</div>'
+            ;
+    }
+
+    function cardBrandDetector(number) {
+        removeClassFromElement($cc, 'input-cc-number-not-supported');
+
+        var re_visa = new RegExp("^4");
+        var re_master = new RegExp("^5");
+        var re_maestro = new RegExp("^6");
+        var re_troy = new RegExp("^9");
+
+        if (number.match(re_visa) != null){
+            addClassToElement($cc, 'input-cc-number-visa');
+            removeClassFromElement($cc, 'input-cc-number-master');
+            removeClassFromElement($cc, 'input-cc-number-maestro');
+            removeClassFromElement($cc, 'input-cc-number-troy');
+        }else if (number.match(re_master) != null){
+            addClassToElement($cc, 'input-cc-number-master');
+            removeClassFromElement($cc, 'input-cc-number-visa');
+            removeClassFromElement($cc, 'input-cc-number-maestro');
+            removeClassFromElement($cc, 'input-cc-number-troy');
+        }else if (number.match(re_maestro) != null){
+            addClassToElement($cc, 'input-cc-number-maestro');
+            removeClassFromElement($cc, 'input-cc-number-visa');
+            removeClassFromElement($cc, 'input-cc-number-master');
+            removeClassFromElement($cc, 'input-cc-number-troy');
+        }else if (number.match(re_troy) != null){
+            addClassToElement($cc, 'input-cc-number-troy');
+            removeClassFromElement($cc, 'input-cc-number-visa');
+            removeClassFromElement($cc, 'input-cc-number-master');
+            removeClassFromElement($cc, 'input-cc-number-maestro');
+        }else{
+            addClassToElement($cc, 'input-cc-number-not-supported');
+            removeClassFromElement($cc, 'input-cc-number-visa');
+            removeClassFromElement($cc, 'input-cc-number-master');
+            removeClassFromElement($cc, 'input-cc-number-maestro');
+            removeClassFromElement($cc, 'input-cc-number-troy');
+        }
+    }
+
+    function addClassToElement(element, className) {
+        element.className += ' '+className;
+    }
+
+    function removeClassFromElement(element, className) {
+        var currentClasses = element.className;
+        element.className = currentClasses.replace(className, "");
+    }
+
+    function createEventListenerToInstallment(){
+        var $installmentRadio = document.getElementsByClassName('custom_field_installment_radio');
+        for (var i = 0; i < $installmentRadio.length; i++) {
+            $installmentRadio[i].addEventListener('click', showHide3D, false);
+        }
+    }
+
+    function showHide3D(e) {
+        var target = e.target || e.srcElement;
+        var count = target.getAttribute('rel');
+        var has3D = parseInt($has3d.value);
+
+        if(count!=1 && has3D!=1) {
+            $enable3dSecure.style.display = 'none';
+            $has3d.checked = false;
+        } else {
+            $enable3dSecure.style.display = 'block';
+        }
+    }
+
+    function openPaymentMethod() {
+        var i, tabcontent, tablinks;
+        tabcontent = document.getElementsByClassName("tabcontent");
+        for (i = 0; i < tabcontent.length; i++) {
+            tabcontent[i].style.display = "none";
+        }
+        tablinks = document.getElementsByClassName("tablinks");
+        for (i = 0; i < tablinks.length; i++) {
+            tablinks[i].className = tablinks[i].className.replace(" active", "");
+        }
+    }
+
+    function openCardPaymentMethod() {
+        methodName = 'cardPaymentMethod';
+        openPaymentMethod();
+
+        cardPaymentMethodTab.className += " active";
+        document.getElementById(methodName).style.display = "block";
+        document.getElementById('<?php echo $_code ?>_bank_id').value = '';
+    }
+
+
+</script>

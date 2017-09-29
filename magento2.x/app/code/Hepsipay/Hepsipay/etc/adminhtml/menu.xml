@@ -1,0 +1,6 @@
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../../Backend/etc/menu.xsd">
+    <menu>
+        <add id="Hepsipay_Hepsipay::hepsipayhistory" title="Hepsipay Histroy" module="Hepsipay_Hepsipay" sortOrder="50" resource="Hepsipay_Hepsipay::hepsipayhistory"/>
+        <add id="Hepsipay_Hepsipay::manage_items" title="Transaction History" module="Hepsipay_Hepsipay" sortOrder="10" parent="Hepsipay_Hepsipay::hepsipayhistory" action="hepsipay/hepsipayhistory/" resource="Hepsipay_Hepsipay::hepsipayhistory"/>
+    </menu>
+</config>
