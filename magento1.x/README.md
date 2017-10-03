@@ -8,7 +8,7 @@
 
 #### Kurulum
 
-***Bu dökümantasyon Magento V.1.9.x versiyonları için geçerlidir.***
+***Bu dökümantasyon Magento V.1.9.x ve V.2.x versiyonları için geçerlidir.***
 
 ###### 1.İlk olarak FTP bağlantısı ile websitemizin ana dizinine giriyoruz. Hepsipay eklentimizi .zip uzantılı dosyasından çıkartıp web sitemizin anadizinine yüklüyoruz.
 
